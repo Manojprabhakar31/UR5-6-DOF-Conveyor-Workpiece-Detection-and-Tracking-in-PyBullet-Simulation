@@ -6,149 +6,152 @@ from kinematics import UR5_KINEMATICS
 kinematics=UR5_KINEMATICS()
 
 # =========================== PERCEPTION =========================================
+    
+def visualize_perception(data):
+    img        = data["img"]
+    edges      = data["edges"]
+    f_edges_p  = data["f_edges_p"]
+    XY_new     = data["XY_new"]
+    XY_p       = data["XY_p"]
+    u_e1       = data["u_e1"]
+    polar      = data["polar"]
+    polar_smt  = data["polar_smt"]
+    polar_all  = data["polar_all"]
+    points     = data["points"]
+    hull       = data["hull"]
+    best_name  = data["best_name"]
+    pose_error = data["pose_error"]
+    """
+    Clean visualization of perception pipeline:
+    1. Original image
+    2. Canny edges
+    3. Final selected edge points
+    4. Polar profile (r vs theta)
+    5. Best bounding shape
+    6. Pose error bar plot
+    """
 
-def visualize_perception(
-    img,
-    edges,
-    f_edges_p,
-    XY_new,
-    XY_p,
-    u_e1,
-    polar,
-    polar_smt,
-    polar_all,
-    points,
-    hull,
-    best_name
-):
-    """
-    Visualization of perception pipeline:
-    - Edge extraction
-    - Filtered edge points
-    - Polar representation
-    - Global shape fitting
-    """
+    import numpy as np
+    import matplotlib.pyplot as plt
 
     rect_pts, tri, circ, r, cx, cy = points
-    u_e = u_e1.T if u_e1.size > 0 else None
+    u_e = u_e1.T if u_e1 is not None and u_e1.size > 0 else None
 
-    fig, axs = plt.subplots(2, 3, figsize=(16, 10))
+    fig, axs = plt.subplots(2, 3, figsize=(18, 11))
+    fig.subplots_adjust(wspace=0.25, hspace=0.3)
 
     # ==========================================================
-    # 1. Raw Edge Map (Pixel Space)
+    # 1. Original Image
     # ==========================================================
-    ys, xs = np.where(edges)
     ax = axs[0, 0]
-    ax.scatter(xs, ys, s=1)
-    ax.set_title("1. Raw Edge Pixels")
-    ax.set_aspect('equal')
-    ax.grid(True)
-
-    # ==========================================================
-    # 2. Filtered & Processed Edge Points (XY Space)
-    # ==========================================================
-    ax = axs[0, 1]
-    ax.scatter(f_edges_p[0], f_edges_p[1], s=2, color='red', label='Filtered Edges')
-    ax.scatter(XY_new[0], XY_new[1], s=2, color='blue', label='Resampled Points')
-
-    if u_e is not None:
-        ax.scatter(u_e[:, 0], u_e[:, 1], s=5, color='black', label='Extreme Points')
-
-    # Draw best-fit shape
-    if best_name == "Rectangle":
-        ax.plot(rect_pts[:, 0], rect_pts[:, 1], 'g', lw=1.0, label='Rectangle Fit')
-
-    elif best_name == "Triangle":
-        ax.plot(
-            [*tri[:, 0], tri[0, 0]],
-            [*tri[:, 1], tri[0, 1]],
-            'r', lw=1.5, label='Triangle Fit'
-        )
-
-    elif best_name == "Circle":
-        ax.add_patch(plt.Circle((cx, cy), r, fill=False,
-                                 edgecolor='yellow', lw=1.5, label='Circle Fit'))
-
-    ax.set_title("2. Filtered Edge Points & Best Fit")
-    ax.set_aspect('equal')
-    ax.grid(True)
-    ax.legend(fontsize=8)
-
-    # ==========================================================
-    # 3. Polar Representation
-    # ==========================================================
-    ax = axs[0, 2]
-    ax.scatter(polar_all[1], polar_all[0], s=1, color='red', label='Raw Polar')
-    ax.plot(polar[1], polar[0], lw=1.5, label='Polar')
-    ax.plot(polar_smt[1], polar_smt[0], lw=1.5, color='green', linestyle='--', label='Smoothed Polar')
-
-    ax.set_xlim(-3.16, 3.16)
-    ax.set_title("3. Polar Space Representation")
-    ax.grid(True)
-    ax.legend(fontsize=8)
-
-    # ==========================================================
-    # 4. Global Fits on Image
-    # ==========================================================
-    ax = axs[1, 0]
     ax.imshow(img)
-    ax.set_title("4. All Global Shape Fits")
-
-    # Rectangle
-    ax.plot(
-        [*rect_pts[:, 0], rect_pts[0, 0]],
-        [*rect_pts[:, 1], rect_pts[0, 1]],
-        'g', lw=1.3
-    )
-
-    # Triangle
-    ax.plot(
-        [*tri[:, 0], tri[0, 0]],
-        [*tri[:, 1], tri[0, 1]],
-        'r', lw=1.3
-    )
-
-    # Circle
-    ax.add_patch(circ)
-
+    ax.set_title("1. Input Image", fontsize=12)
     ax.axis('off')
 
     # ==========================================================
-    # 5. Best Global Fit Only
+    # 2. Canny Edge Map
+    # ==========================================================
+    ys, xs = np.where(edges)
+    ax = axs[0, 1]
+    ax.scatter(xs, ys, s=0.7, c='blue')
+    ax.set_title("2. Canny Edge Detection", fontsize=12)
+    ax.set_aspect('equal')
+    ax.grid(alpha=0.3)
+
+    # ==========================================================
+    # 3. Selected & Resampled Edge Points
+    # ==========================================================
+    ax = axs[0, 2]
+    ax.scatter(f_edges_p[0], f_edges_p[1],
+               s=6, c='tab:red', alpha=0.8, label='Filtered Edges')
+    ax.scatter(XY_new[0], XY_new[1],
+               s=6, c='tab:blue', alpha=0.8, label='Resampled Center')
+
+    #if u_e is not None:
+    #    ax.scatter(u_e[:, 0], u_e[:, 1],
+    #               s=25, c='k', marker='x', label='Extreme Points')
+
+    if best_name == "Rectangle":
+        ax.plot(*rect_pts.T, color='lime', lw=2.2)
+        #ax.plot([rect_pts[-1,0], rect_pts[0,0]],
+        #        [rect_pts[-1,1], rect_pts[0,1]], 'g', lw=2.2)
+
+    elif best_name == "Triangle":
+        ax.plot(*tri.T, 'r', lw=2.2)
+        ax.plot([tri[-1,0], tri[0,0]],
+                [tri[-1,1], tri[0,1]], 'r', lw=2.2)
+
+    elif best_name == "Circle":
+        ax.add_patch(plt.Circle((cx, cy), r,
+                                fill=False, ec='gold',
+                                lw=2.5))
+        
+    ax.set_title("3. Final Edge Selection", fontsize=12)
+    ax.set_aspect('equal')
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=9)
+
+    # ==========================================================
+    # 4. Polar Profile (r vs theta)
+    # ==========================================================
+    ax = axs[1, 0]
+    ax.scatter(polar_all[1], polar_all[0],
+               s=6, c='lightcoral', alpha=0.4, label='Raw')
+    ax.plot(polar[1], polar[0],
+            lw=2.0, c='tab:blue', label='Processed')
+    ax.plot(polar_smt[1], polar_smt[0],
+            lw=2.5, c='tab:green', ls='--', label='Smoothed')
+
+    ax.set_xlabel(r'$\theta$ (rad)')
+    ax.set_ylabel('r (pixels)')
+    ax.set_title("4. Polar Signature (r vs θ)", fontsize=12)
+    ax.grid(alpha=0.4)
+    ax.legend(fontsize=9)
+
+    # ==========================================================
+    # 5. Best Bounding Shape on Image
     # ==========================================================
     ax = axs[1, 1]
     ax.imshow(img)
-    ax.set_title(f"5. Best Fit: {best_name}")
+    ax.set_title(f"5. Best Fit: {best_name}", fontsize=12)
 
     if best_name == "Rectangle":
-        ax.plot(
-            [*rect_pts[:, 0], rect_pts[0, 0]],
-            [*rect_pts[:, 1], rect_pts[0, 1]],
-            'g', lw=1.5
-        )
+        ax.plot(*rect_pts.T, 'g', lw=2.2)
+        ax.plot([rect_pts[-1,0], rect_pts[0,0]],
+                [rect_pts[-1,1], rect_pts[0,1]], 'g', lw=2.2)
 
     elif best_name == "Triangle":
-        ax.plot(
-            [*tri[:, 0], tri[0, 0]],
-            [*tri[:, 1], tri[0, 1]],
-            'r', lw=1.5
-        )
+        ax.plot(*tri.T, 'r', lw=2.2)
+        ax.plot([tri[-1,0], tri[0,0]],
+                [tri[-1,1], tri[0,1]], 'r', lw=2.2)
 
     elif best_name == "Circle":
-        ax.add_patch(plt.Circle((cx, cy), r, fill=False,
-                                 edgecolor='yellow', lw=1.5))
+        ax.add_patch(plt.Circle((cx, cy), r,
+                                fill=False, ec='gold',
+                                lw=2.5))
 
     ax.axis('off')
 
     # ==========================================================
-    # 6. Empty / Reserved
+    # 6. Pose Error Bar Plot
     # ==========================================================
-    axs[1, 2].axis('off')
+    ax = axs[1, 2]
 
-    plt.tight_layout()
+    if pose_error is not None:
+        labels = ['X', 'Y', 'Z', 'Yaw']
+        vals = pose_error
+        ax.bar(labels, vals,
+               color=['tab:blue', 'tab:orange', 'tab:green', 'tab:red'])
+        ax.axhline(0, c='k', lw=1)
+        ax.set_ylabel('Error')
+        ax.set_title("6. Pose Estimation Error", fontsize=12)
+        ax.grid(axis='y', alpha=0.4)
+    else:
+        ax.text(0.5, 0.5, 'No Error Data',
+                ha='center', va='center')
+        ax.axis('off')
+
     plt.show()
-
-
 
 # ============================ CONTROL ================================================
 
@@ -173,7 +176,7 @@ def wrap_to_pi(angle):
 # ============================== PLOTS ======================================================
 
 def plot_all(env, p_des_log, p_act_log, q_log2, tau_log2,
-             t_log1,t_log2, cube_log, q_catch, e_yaw,res1, pc):
+             t_log1,t_log2,t1,t2,t3, cube_log, q_catch, e_yaw,res1, pc):
     t_log  =np.hstack([t_log1,t_log2])
     labels = ['X', 'Y', 'Z', 'Yaw']
 
@@ -200,11 +203,25 @@ def plot_all(env, p_des_log, p_act_log, q_log2, tau_log2,
     #axs[0].axvline(t_log1[-1],"k:")
     axs[0].set_ylabel('Torque (N·m)')
     axs[0].set_title('Joint Torques')
-    axs[0].axvline(t_log1[-1],color='k', linestyle='--',linewidth=1)
+    axs[0].axvline(0, color='k', linestyle='--',linewidth=1,label='t0')
+    axs[0].axvline(t1,color='r', linestyle='--',linewidth=1,label='t1')
+    axs[0].axvline(t2,color='b', linestyle='--',linewidth=1,label='t2')
+    axs[0].axvline(t3,color='g', linestyle='--',linewidth=1,label='t3')
+
     axs[1].set_ylabel('Joint Angle (rad)')
     axs[1].set_title('Joint Positions')
-    axs[1].axvline(t_log1[-1],color='k', linestyle='--',linewidth=1)
+    #axs[1].axvline(t_log1[-1],color='k', linestyle='--',linewidth=1)
+    axs[1].axvline(0, color='k', linestyle='--',linewidth=1,label='t0')
+    axs[1].axvline(t1,color='r', linestyle='--',linewidth=1,label='t1')
+    axs[1].axvline(t2,color='b', linestyle='--',linewidth=1,label='t2')
+    axs[1].axvline(t3,color='g', linestyle='--',linewidth=1,label='t3')
+
+    
     axs[2].axhline(0, color='k', ls='--', alpha=0.5)
+    axs[2].axvline(0, color='k', ls='--', alpha=0.5,label='t0')
+    axs[2].axvline(t1,color='r', linestyle='--',linewidth=1,label='t1')
+    axs[2].axvline(t2,color='b', linestyle='--',linewidth=1,label='t2')
+    axs[2].axvline(t3,color='g', linestyle='--',linewidth=1,label='t3')
     axs[2].set_ylabel('Joint Error (deg)')
     axs[2].set_title('Joint Error w.r.t Catch Configuration')
     axs[2].set_xlabel('Time (s)')
