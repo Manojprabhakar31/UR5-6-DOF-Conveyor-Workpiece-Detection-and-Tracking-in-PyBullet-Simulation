@@ -287,4 +287,3 @@ def apply_joint_torques(robot, joints, tau, limit=800):
             controlMode=p.TORQUE_CONTROL,
             force=float(tau[i])
         )
-
