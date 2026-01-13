@@ -67,7 +67,7 @@ def find_optimal_catch_point_jacobian(env,kinematics,X1, X2, Pc0,Oc0, Pr0, Vc, q
     for d in np.linspace(0.125/2 * L, 0.5 * L, num_steps):
 
         Pc = X1 + d * u
-        Pc3 = np.array([Pc[0]-0.1, Pc[1], z_off])
+        Pc3 = np.array([Pc[0], Pc[1], z_off])
         orn=np.array([180,0,np.rad2deg(Oc0)])
         t = np.linalg.norm(Pc3 - Pc0) / np.linalg.norm(Vc)
         if t <= 0: continue
@@ -198,15 +198,38 @@ def cube_vision_data(env,t):
     
     yaw_mean=np.mean(yaw_cube)
     yaw_cube_act = env.cube_yaw
-    print("error in orientation : ",abs(np.rad2deg(yaw_mean-yaw_cube_act)))
+    
+    err_yaw=abs(np.rad2deg(kinematics.wrap_to_pi(yaw_mean-yaw_cube_act)))
+    tol=1e-3
+    if err_yaw/90>1 or np.isclose(err_yaw,90):
+        err_yaw=abs(err_yaw-90)
+        
+    print("error in orientation : ",err_yaw)
+    pose_error=np.hstack([act[-1,:]-P_Predict,err_yaw])
+    data = {
+    "img": img,
+    "edges": edges,
+    "f_edges_p": f_edges_p1,
+    "XY_new": XY_new1,
+    "XY_p": XY_p1,
+    "u_e1": upper_edges1,
+    "polar": polar1,
+    "polar_smt": polar_smt1,
+    "polar_all": polar_all1,
+    "points": points1,
+    "hull": hull1,
+    "best_name": best_name1,
+    "pose_error": pose_error   # np.array([ex, ey, ez, eyaw])
+    }
 
-    return P_Predict,act,cal_3D,yaw_mean+np.pi/2,t
+
+    return P_Predict,act,cal_3D,yaw_mean+np.pi/2,t, data
 
 def cube_data(env,kinematics,q0,Pr0,z_off,t):
     
     # ================= CUBE DATA =================
 
-    cube_pos,_,_,cube_yaw,t = cube_vision_data(env,t)#env.pos_new_cube #cube_yaw = env.cube_pose["yaw"]
+    cube_pos,_,_,cube_yaw,t,data = cube_vision_data(env,t)#env.pos_new_cube #cube_yaw = env.cube_pose["yaw"]
     T_cube=kinematics.T_from_XYZ_RPY(np.hstack([cube_pos,0,0,0]))
     ctrl3.draw_frame(T_cube)
     
@@ -253,7 +276,7 @@ def cube_data(env,kinematics,q0,Pr0,z_off,t):
     t_catch = np.linalg.norm(target[:2] - cube_pos[:2]) / np.linalg.norm(Vc)
     print(f"⏱ Catch time: {t_catch:.3f} s")
 
-    return target, q_catch,cube_yaw, t_catch, Vc , X2, t
+    return target, q_catch,cube_yaw, t_catch, Vc , X2, t, data
 
 # ==========================================================================================
 
