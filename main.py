@@ -73,8 +73,11 @@ if __name__ == "__main__":
     # ==========================================================
     
     for j in joints: p.setJointMotorControl2(robot,j,controlMode=p.POSITION_CONTROL,targetPosition=q0[j-1],force=1000)
-    target, q_catch,cube_yaw,t_catch, Vc, X2,t = ctrl.cube_data(env, kinematics, q0, Pr0, z_off,t)
-
+    #print("t1: ",t)
+    t11=t
+    target, q_catch,cube_yaw,t_catch, Vc, X2,t,data = ctrl.cube_data(env, kinematics, q0, Pr0, z_off,t)
+    #print("t2: ",t)
+    t21=t
     pc = target[:3]
     T_catch = kinematics.T_from_XYZ_RPY(target)
     R_d = T_catch[:3, :3]
@@ -165,7 +168,7 @@ if __name__ == "__main__":
             if abs(t1 - t_catch) < dt:
                 eint[:] = 0
                 p_d = p_act.copy()
-
+                t31=t-dt
             wait = (t1 - t_catch) >= t_wait
 
             p_d, dp_d, ddp_d = ctrl.lineTrajectory(wait, dt, t_track, z_des_catch, Vc, z_off, p_act, p_d, bb)
@@ -235,14 +238,10 @@ if __name__ == "__main__":
 
     print("=================== GOING TO DROP LOCATION ======================")
 
-    #limit2      = 150
-    #res2,t = ctrl2.drop_in_tray(env, robot, joints, z_des_catch, limit1,t)
-
     print("======================= COMPLETED TRACKING THE RANDOMLY PLACED AND ORIENTED CUBE WORK PIECE ======================")
     print("Total loop time: ",t)
 
     print("======================= PLOTS ========================")
 
-    # PHASE 2
-    ctrl3.plot_all(env,p_des_log, p_act_log,  q_log, torque_log, t_log1,t_log2, cube_log, q_catch_log,EE_yaw_log,res1, pc)
-
+    ctrl3.visualize_perception(data)
+    ctrl3.plot_all(env,p_des_log, p_act_log,  q_log, torque_log, t_log1,t_log2,t11,t21,t31, cube_log, q_catch_log,EE_yaw_log,res1, pc)
