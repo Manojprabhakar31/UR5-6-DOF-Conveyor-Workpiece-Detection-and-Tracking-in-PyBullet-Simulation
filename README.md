@@ -17,5 +17,3 @@ The project focuses on real-time pose estimation and kinematics-based control, u
   <img src="https://github.com/user-attachments/assets/bf706bcb-3b8b-495e-bc05-8b0b0f653a7a" width="800">
 </p> <br>
 
-This work is intended strictly for educational and academic purposes, serving as a reference for robotic manipulation, control, perception, and simulation concepts.
-Commercial use of this project is not permitted without prior authorization.
